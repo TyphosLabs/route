@@ -21,13 +21,16 @@ module.exports = {
 function callback(){
     // jshint validthis:true
     var queue = this.$;
-    queue.wait();
+    queue.wait(callbackFn);
     var called = false;
     var args = Array.prototype.slice.call(arguments, 0);
     var route = this;
     
     function callbackFn(){
         // callback fired
+        if(callbackFn.errored){
+            return;
+        }
         
         // has this callback already been called?
         if(called){
@@ -100,9 +103,14 @@ function callbackWithErrorFirst(handler){
     // jshint validthis:true
     var route = this;
     var queue = this.$;
-    queue.wait();
+    queue.wait(cbe);
     var called = false;
-    return function(err){
+    function cbe(err){
+        // callback fired
+        if(cbe.errored){
+            return;
+        }
+        
         // has this callback already been called?
         if(called){
             throw new Error('Callback called more than once!');
@@ -116,7 +124,7 @@ function callbackWithErrorFirst(handler){
         
         if(handler){
             try {
-                handler.apply(route, Array.prototype.slice.call(arguments, 0));
+                handler.apply(route, Array.prototype.slice.call(arguments, 1));
             } catch(err){
                 queue.error(err);
             }
@@ -124,7 +132,9 @@ function callbackWithErrorFirst(handler){
         
         // we are done waiting for this callback
         queue.wait(-1);
-    };
+    }
+    
+    return cbe;
 }
 
 function error(err){

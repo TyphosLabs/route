@@ -526,27 +526,34 @@ describe('route', () => {
             });
     });
     
-    it('should wait for callbacks even if there was an error', done => {
+    it('should ignore callbacks responses if the route handler throws before returning', done => {
         var route = new Router();
-        var test = { hit:'' };
-        var error;
+        var hit = '';
+        var error = new Error('error');
         
-        route.test = function(arg){
-            this.cb()();
+        route.test = function(){
             setTimeout(this.cb(() => {
-                arg.hit += 2;
+                hit += '1';
             }), 100);
-            arg.hit += 1;
+            
+            setTimeout(this.cb(() => {
+                hit += '2';
+            }), 50);
+            
             throw error;
         };
         
-        route.run(test)
+        route.run()
             .test()
-            .then((err, arg) => {
+            .then(err => {
+                expect(hit).to.equal('');
                 expect(err).to.equal(error);
-                expect(arg).to.equal(test);
-                expect(arg).to.deep.equal({ hit:'12' });
-                done();
+                
+                // wait until long after the callbacks should have fired
+                setTimeout(() => {
+                    expect(hit).to.equal('');
+                    done();
+                }, 120);
             });
     });
     
@@ -691,14 +698,15 @@ describe('route', () => {
             var hit = '';
             
             route.test = function(){
-                setTimeout(this.cbe(() => {
-                    hit += 1;
-                    this.run()
+                var cb = this.cbe(arg => {
+                    hit += arg;
+                    this.run(arg)
                         .test2();
-                }), 50);
+                });
+                setTimeout(() => cb(null, 1), 50);
             };
-            route.test2 = function(){
-                hit += 2;
+            route.test2 = function(arg){
+                hit += arg + 1;
             };
             
             route.run()
@@ -791,6 +799,33 @@ describe('route', () => {
                         expect(hit).to.equal('timeoutdonetimeout');
                         done();
                     }, 100);
+                });
+        });
+        
+        it('should ignore callbacks responses if the route handler throws before returning', done => {
+            var route = new Router();
+            var hit = '';
+            var error = new Error('error');
+            
+            route.test = function(){
+                setTimeout(this.cbe(() => {
+                    hit += '1';
+                }), 50);
+                
+                throw error;
+            };
+            
+            route.run()
+                .test()
+                .then(err => {
+                    expect(hit).to.equal('');
+                    expect(err).to.equal(error);
+                    
+                    // wait until long after the callbacks should have fired
+                    setTimeout(() => {
+                        expect(hit).to.equal('');
+                        done();
+                    }, 120);
                 });
         });
     });

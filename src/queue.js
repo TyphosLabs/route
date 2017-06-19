@@ -19,6 +19,7 @@ function Queue(RunnerRoute, args, callee){
     this.err = [];           // error handlers
     this.data = args;        // the original args passed
     this.args = undefined;   // will be the args to call the fn returned by queue.next() with
+    this.cbs = undefined;
     
     // check if this queue is a child queue
     if(callee){
@@ -63,9 +64,21 @@ Queue.prototype.next = function(){
     
     // do we need to pause for callbacks?
     if(this.pause){
-        // return a value that is not undefined to indicate we still have more
-        // functions in the queue
-        return false;
+        if(this.errors && this.cbs){
+            for(var i = 0; i < this.cbs.length; i++){
+                this.cbs[i].errored = true;
+            }
+            this.pause = 0;
+        } else {
+            // return a value that is not undefined to indicate we still have more
+            // functions in the queue
+            return false;
+        }
+    }
+    
+    // going to the next function so we can reset the callbacks
+    if(this.cbs){
+        this.cbs = undefined;
     }
     
     // find the next function
@@ -157,12 +170,23 @@ Queue.prototype.wait = function(count){
         return this.pause++;
     }
     
+    if(arguments.length === 1 && typeof count === 'function'){
+        if(!this.cbs){
+            this.cbs = [count];
+        } else {
+            this.cbs.push(count);
+        }
+        count = 1;
+    }
+    
     // otherwise, increment the pause counter
     this.pause += count;
     
     // if we have reached 0 events we are waiting on, continue processing the queue
     if(this.pause === 0){
-        nextTick(() => this.run());
+        nextTick(() => {
+            this.run();
+        });
     }
 };
 

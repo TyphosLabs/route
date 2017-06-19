@@ -1,6 +1,6 @@
 {
   "name": "@typhoslabs/route",
-  "version": "1.0.0",
+  "version": "0.0.0",
   "description": "Serverside routing handler",
   "main": "index.js",
   "scripts": {
